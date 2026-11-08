@@ -3,12 +3,16 @@ import axios from 'axios'
 // ---------------------------------------------------------------------------
 // Base URL & Supabase Key Configuration
 // Read from environment variables (.env)
+// Automatically sanitizes trailing slashes and redundant /rest/v1 paths
 // ---------------------------------------------------------------------------
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const RAW_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim()
+const BASE_URL = RAW_BASE_URL.replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '')
 const SUPABASE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  ''
+  (
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    ''
+  ).trim()
 
 const IS_SUPABASE =
   BASE_URL.includes('supabase.co') || Boolean(SUPABASE_KEY)
