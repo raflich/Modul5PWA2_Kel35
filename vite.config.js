@@ -22,6 +22,29 @@ export default defineConfig({
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
+        shortcuts: [
+          {
+            name: 'Browse Catalog',
+            short_name: 'Catalog',
+            description: 'View weapons catalog',
+            url: '/?tab=Catalog',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+          },
+          {
+            name: 'Saved Shortlist',
+            short_name: 'Favorites',
+            description: 'View favorited weapons',
+            url: '/?tab=Favorites',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+          },
+          {
+            name: 'Add Hardware Piece',
+            short_name: 'Add Piece',
+            description: 'Register a new firearm record',
+            url: '/?tab=Create',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+          },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
