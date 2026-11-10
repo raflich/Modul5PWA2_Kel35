@@ -109,6 +109,28 @@ export const getAllDraftIds = () => {
 }
 
 /**
+ * Return all existing drafts with their parsed payload and id.
+ */
+export const getAllDrafts = () => {
+  try {
+    const ids = getAllDraftIds()
+    return ids
+      .map((id) => {
+        const payload = loadDraft(id)
+        if (!payload) return null
+        return {
+          id,
+          savedAt: payload.savedAt || getDraftTimestamp(id),
+          ...payload,
+        }
+      })
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+/**
  * Remove every gun draft from storage.
  */
 export const clearAllDrafts = () => {
