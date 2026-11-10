@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Star, Send, Loader } from 'lucide-react'
 import FavoriteButton from '../common/FavoriteButton'
 import ShareButton from '../common/ShareButton'
+import LazyImage from '../common/LazyImage'
 import { useReviews, useCreateReview } from '../../hooks/useReviews'
 import { getUserIdentifier } from '../../services/userService'
 import { formatPrice, averageRating } from '../../utils/helpers'
@@ -67,17 +68,12 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
 
       {/* Hero */}
       <div className="detail-hero">
-        <img
+        <LazyImage
           className="detail-img"
+          wrapperClassName="detail-img-wrapper"
           src={imgSrc}
           alt={gun.name}
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            if (!e.currentTarget.src.endsWith('/guns/pistol.svg')) {
-              e.currentTarget.src = '/guns/pistol.svg'
-            }
-          }}
+          fallbackSrc="/guns/pistol.svg"
         />
         <div className="detail-info">
           <h1 className="display">{gun.name}</h1>

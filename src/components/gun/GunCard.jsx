@@ -1,5 +1,6 @@
 import FavoriteButton from '../common/FavoriteButton'
 import ShareButton from '../common/ShareButton'
+import LazyImage from '../common/LazyImage'
 import { formatPrice, truncate } from '../../utils/helpers'
 
 /**
@@ -25,19 +26,15 @@ export default function GunCard({ gun, onSelect, onEdit, onDelete }) {
         onClick={() => onSelect(gun)}
         aria-label={`View ${gun.name}`}
       >
-        <img
+        <LazyImage
           className="card-img"
+          wrapperClassName="card-img-wrapper"
           src={imgSrc}
           alt={gun.name}
-          width="240"
-          height="180"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            if (!e.currentTarget.src.endsWith('/guns/pistol.svg')) {
-              e.currentTarget.src = '/guns/pistol.svg'
-            }
-          }}
+          width={240}
+          height={180}
+          fallbackSrc="/guns/pistol.svg"
+          rootMargin="50px 0px"
         />
 
         <span className="name display">{gun.name}</span>
