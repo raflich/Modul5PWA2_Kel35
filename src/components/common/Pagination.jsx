@@ -7,14 +7,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
  * @param {number} props.currentPage - Current active page number (1-based)
  * @param {number} props.totalPages - Total calculated pages
  * @param {number} props.totalItems - Total item count across all pages
- * @param {number} [props.itemsPerPage=6] - Number of items shown per page
+ * @param {number} [props.itemsPerPage=10] - Number of items shown per page
  * @param {Function} props.onPageChange - Callback receiving new page number
  */
 export default function Pagination({
   currentPage,
   totalPages,
   totalItems,
-  itemsPerPage = 6,
+  itemsPerPage = 10,
   onPageChange,
 }) {
   if (totalPages <= 1) return null

@@ -65,8 +65,8 @@ export default function FavoritesPage({ onSelectGun, onNavigateCatalog }) {
 
   const isLoading = favLoading && favoriteItems.length === 0
 
-  // ---- pagination (6 guncards per page) ----
-  const ITEMS_PER_PAGE = 6
+  // ---- pagination (10 guncards per page) ----
+  const ITEMS_PER_PAGE = 10
   const [currentPage, setCurrentPage] = useState(1)
 
   const totalPages = Math.ceil(favoriteItems.length / ITEMS_PER_PAGE) || 1

@@ -45,8 +45,8 @@ export default function Catalog({ onNavigate }) {
   const [sortKey, setSortKey] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
 
-  // ---- pagination (6 guncards per page) ----
-  const ITEMS_PER_PAGE = 6
+  // ---- pagination (10 guncards per page) ----
+  const ITEMS_PER_PAGE = 10
   const [currentPage, setCurrentPage] = useState(1)
 
   const categories = useMemo(() => extractCategories(rawGuns), [rawGuns])
@@ -218,7 +218,7 @@ export default function Catalog({ onNavigate }) {
           </div>
         )}
 
-        {/* Product grid (6 pieces per page) */}
+        {/* Product grid (10 pieces per page) */}
         {paginatedGuns.length > 0 && (
           <ul className="stock">
             {paginatedGuns.map((gun) => (
