@@ -11,6 +11,9 @@ import {
   ThumbsDown,
   Edit2,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Images,
 } from 'lucide-react'
 import FavoriteButton from '../common/FavoriteButton'
 import ShareButton from '../common/ShareButton'
@@ -37,7 +40,21 @@ import { formatPrice, averageRating } from '../../utils/helpers'
  * @param {Function} [props.onDelete]— trigger delete flow
  */
 export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
-  const imgSrc = gun.image_url || gun.image || '/guns/pistol.svg'
+  // Multiple images gallery
+  const galleryImages = Array.isArray(gun.images) && gun.images.length > 0
+    ? gun.images.filter(Boolean)
+    : [gun.image_url || gun.image || '/guns/pistol.svg']
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const activeImage = galleryImages[activeImageIndex] || galleryImages[0]
+
+  const handlePrevImage = () => {
+    setActiveImageIndex((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1))
+  }
+
+  const handleNextImage = () => {
+    setActiveImageIndex((prev) => (prev === galleryImages.length - 1 ? 0 : prev + 1))
+  }
+
   const category = gun.type || gun.category || '—'
   const caliber = gun.caliber || gun.difficulty || ''
   const price = gun.price ?? gun.cook_time ?? 0
@@ -184,13 +201,59 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
 
       {/* Hero */}
       <div className="detail-hero">
-        <LazyImage
-          className="detail-img"
-          wrapperClassName="detail-img-wrapper"
-          src={imgSrc}
-          alt={gun.name}
-          fallbackSrc="/guns/pistol.svg"
-        />
+        <div className="detail-gallery">
+          <div className="detail-img-wrapper">
+            <LazyImage
+              className="detail-img"
+              src={activeImage}
+              alt={`${gun.name} - asset ${activeImageIndex + 1}`}
+              fallbackSrc="/guns/pistol.svg"
+            />
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="gallery-nav-btn gallery-nav-btn--prev"
+                  onClick={handlePrevImage}
+                  aria-label="Previous image"
+                  title="Previous image"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="gallery-nav-btn gallery-nav-btn--next"
+                  onClick={handleNextImage}
+                  aria-label="Next image"
+                  title="Next image"
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <span className="gallery-counter">
+                  <Images size={12} /> {activeImageIndex + 1} / {galleryImages.length}
+                </span>
+              </>
+            )}
+          </div>
+
+          {galleryImages.length > 1 && (
+            <div className="detail-thumbs-strip" role="tablist" aria-label="Product image thumbnails">
+              {galleryImages.map((url, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  role="tab"
+                  aria-selected={idx === activeImageIndex}
+                  className={`gallery-thumb ${idx === activeImageIndex ? 'gallery-thumb--active' : ''}`}
+                  onClick={() => setActiveImageIndex(idx)}
+                  title={`View image ${idx + 1}`}
+                >
+                  <img src={url} alt={`Thumbnail ${idx + 1}`} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="detail-info">
           <h1 className="display">{gun.name}</h1>
           <p className="type">

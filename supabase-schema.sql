@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     description TEXT DEFAULT '',
     specs TEXT[] DEFAULT '{}',
     image_url TEXT DEFAULT '/guns/pistol.svg',
+    images TEXT[] DEFAULT '{}',
     is_archived BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.products (
 
 -- Migrasi tambahan untuk tabel yang sudah ada sebelumnya
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}';
 
 -- 2. TABEL REVIEWS (Ulasan & Rating Produk)
 CREATE TABLE IF NOT EXISTS public.reviews (

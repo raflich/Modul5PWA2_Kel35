@@ -79,6 +79,29 @@ class UploadService {
 
     return response.data
   }
+
+  /**
+   * Upload multiple image files.
+   * @param {FileList|Array<File>} files
+   * @returns {Promise<Array<string>>} Array of uploaded image URLs
+   */
+  async uploadMultipleImages(files) {
+    if (!files || files.length === 0) return []
+    const fileArray = Array.from(files)
+    const uploadedUrls = []
+
+    for (const file of fileArray) {
+      try {
+        const res = await this.uploadImage(file)
+        if (res && res.data?.url) {
+          uploadedUrls.push(res.data.url)
+        }
+      } catch (err) {
+        console.warn(`[uploadService] Failed to upload ${file.name}:`, err)
+      }
+    }
+    return uploadedUrls
+  }
 }
 
 export default new UploadService()

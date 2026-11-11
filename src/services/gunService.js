@@ -39,6 +39,25 @@ export const normalizeProduct = (item) => {
       ? item.steps
       : ['Verify firearm is completely unloaded and point in safe direction.', 'Inspect receiver and mechanism for maintenance.']
 
+  // Resolve multiple images
+  let imagesList = []
+  if (Array.isArray(item.images) && item.images.length > 0) {
+    imagesList = item.images.filter(Boolean)
+  } else if (typeof item.images === 'string' && item.images.startsWith('[')) {
+    try {
+      imagesList = JSON.parse(item.images)
+    } catch {
+      imagesList = [item.images]
+    }
+  }
+
+  if (imagesList.length === 0) {
+    const single = item.image_url || item.image
+    imagesList = single ? [single] : ['/guns/pistol.svg']
+  }
+
+  const primaryImage = imagesList[0] || '/guns/pistol.svg'
+
   return {
     ...item,
     id: item.id,
@@ -48,8 +67,9 @@ export const normalizeProduct = (item) => {
     caliber: item.caliber || 'Standard',
     price: Number(item.price ?? item.cook_time ?? 0),
     description: item.description || '',
-    image_url: item.image_url || item.image || '/guns/pistol.svg',
-    image: item.image_url || item.image || '/guns/pistol.svg',
+    image_url: primaryImage,
+    image: primaryImage,
+    images: imagesList,
     ingredients: specsList,
     steps: stepsList,
   }
@@ -134,6 +154,12 @@ class GunService {
         ? data.specs
         : []
 
+      const imagesArray = Array.isArray(data.images) && data.images.length > 0
+        ? data.images
+        : (data.image_url ? [data.image_url] : ['/guns/pistol.svg'])
+
+      const primaryImage = imagesArray[0] || data.image_url || null
+
       const payload = {
         name: data.name,
         type: data.type || (data.category === 'minuman' ? 'Rifle' : 'Pistol'),
@@ -141,12 +167,23 @@ class GunService {
         price: Number(data.price ?? data.cook_time ?? 0),
         description: data.description || '',
         specs: specsArray,
-        image_url: data.image_url || null,
+        image_url: primaryImage,
+        images: imagesArray,
       }
 
-      const res = await apiClient.post('/rest/v1/products', payload, {
-        headers: { Prefer: 'return=representation' },
-      })
+      let res
+      try {
+        res = await apiClient.post('/rest/v1/products', payload, {
+          headers: { Prefer: 'return=representation' },
+        })
+      } catch {
+        // Fallback if column `images` is not yet migrated in database
+        delete payload.images
+        res = await apiClient.post('/rest/v1/products', payload, {
+          headers: { Prefer: 'return=representation' },
+        })
+      }
+
       const created = Array.isArray(res) ? res[0] : res
       queryCache.invalidateQueries('guns')
       return { success: true, data: normalizeProduct(created) }
@@ -179,10 +216,24 @@ class GunService {
       if (data.description !== undefined) payload.description = data.description
       if (specsArray !== undefined) payload.specs = specsArray
       if (data.image_url !== undefined) payload.image_url = data.image_url
+      if (data.images !== undefined) {
+        payload.images = Array.isArray(data.images) ? data.images : [data.images]
+        if (!payload.image_url && payload.images.length > 0) {
+          payload.image_url = payload.images[0]
+        }
+      }
 
-      const res = await apiClient.patch(`/rest/v1/products?id=eq.${id}`, payload, {
-        headers: { Prefer: 'return=representation' },
-      })
+      let res
+      try {
+        res = await apiClient.patch(`/rest/v1/products?id=eq.${id}`, payload, {
+          headers: { Prefer: 'return=representation' },
+        })
+      } catch {
+        delete payload.images
+        res = await apiClient.patch(`/rest/v1/products?id=eq.${id}`, payload, {
+          headers: { Prefer: 'return=representation' },
+        })
+      }
       const updated = Array.isArray(res) ? res[0] : res
       queryCache.invalidateQueries('guns')
       queryCache.invalidateQueries(['gun', id])

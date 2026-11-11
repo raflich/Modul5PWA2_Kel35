@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft,
-  Upload,
   X,
   Plus,
   Loader,
   Save,
   CheckCircle,
   AlertCircle,
+  Star,
+  Trash2,
+  Images,
 } from 'lucide-react'
 import gunService from '../services/gunService'
 import uploadService from '../services/uploadService'
@@ -45,9 +47,7 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
     is_featured: false,
   })
 
-  const [currentImageUrl, setCurrentImageUrl] = useState('')
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [images, setImages] = useState([])
   const [uploading, setUploading] = useState(false)
 
   // Specs & Steps
@@ -88,7 +88,10 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
             servings: data.servings || 1,
             is_featured: Boolean(data.is_featured),
           })
-          setCurrentImageUrl(data.image_url || data.image || '/guns/pistol.svg')
+          const fetchedImages = Array.isArray(data.images) && data.images.length > 0
+            ? data.images.filter(Boolean)
+            : [data.image_url || data.image || '/guns/pistol.svg']
+          setImages(fetchedImages)
 
           if (data.ingredients && data.ingredients.length > 0) {
             setSpecs(data.ingredients.map((ing) => ({
@@ -131,8 +134,10 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
       if (draft.formData) setFormData(draft.formData)
       if (draft.specs) setSpecs(draft.specs)
       if (draft.steps) setSteps(draft.steps)
-      if (draft.imagePreview) {
-        setImagePreview(draft.imagePreview)
+      if (Array.isArray(draft.images) && draft.images.length > 0) {
+        setImages(draft.images)
+      } else if (draft.imagePreview) {
+        setImages([draft.imagePreview])
       }
       setShowDraftModal(false)
       setSuccessMsg('Saved draft restored.')
@@ -151,7 +156,8 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
       formData,
       specs,
       steps,
-      imagePreview: imagePreview || currentImageUrl,
+      images,
+      imagePreview: images[0] || '/guns/pistol.svg',
     }
     const saved = saveDraft(draftData, targetId)
     if (saved) {
@@ -162,47 +168,72 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
     }
   }
 
-  // Handle new image file
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+  // Handle multiple file upload
+  const handleAddFiles = async (e) => {
+    const fileList = Array.from(e.target.files || [])
+    if (fileList.length === 0) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size exceeds 5MB limit.')
-      return
+    const validFiles = []
+    for (const file of fileList) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError(`File "${file.name}" melebihi batas 5MB.`)
+        continue
+      }
+      const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      if (!allowed.includes(file.type)) {
+        setError(`File "${file.name}" memiliki format tidak didukung (.jpg, .jpeg, .png, .webp).`)
+        continue
+      }
+      validFiles.push(file)
     }
 
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowed.includes(file.type)) {
-      setError('Allowed formats: .jpg, .jpeg, .png, .webp')
-      return
-    }
+    if (validFiles.length === 0) return
 
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-    setError('')
-  }
-
-  const handleUploadNewImage = async () => {
-    if (!imageFile) return
     try {
       setUploading(true)
-      const res = await uploadService.uploadImage(imageFile)
-      if (res.success && res.data?.url) {
-        setCurrentImageUrl(res.data.url)
-        setImageFile(null)
-        setImagePreview(null)
-        setSuccessMsg('New image uploaded successfully.')
-        setTimeout(() => setSuccessMsg(''), 3000)
+      setError('')
+      const uploadedUrls = await uploadService.uploadMultipleImages(validFiles)
+      let finalUrls = []
+      if (uploadedUrls.length > 0) {
+        finalUrls = uploadedUrls
+      } else {
+        finalUrls = validFiles.map((f) => URL.createObjectURL(f))
       }
+      setImages((prev) => [...prev, ...finalUrls])
+      setSuccessMsg(`${finalUrls.length} gambar baru berhasil ditambahkan.`)
+      setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
-      console.warn('Image upload failed, using local blob:', err)
-      setCurrentImageUrl(imagePreview)
-      setImageFile(null)
-      setImagePreview(null)
+      console.warn('Upload API failed, using local preview:', err)
+      const fallbackUrls = validFiles.map((f) => URL.createObjectURL(f))
+      setImages((prev) => [...prev, ...fallbackUrls])
     } finally {
       setUploading(false)
+      if (e.target) e.target.value = ''
     }
+  }
+
+  const handleAddPreset = (url) => {
+    setImages((prev) => (prev.includes(url) ? prev : [...prev, url]))
+  }
+
+  const handleSetCover = (indexToCover) => {
+    setImages((prev) => {
+      if (indexToCover === 0) return prev
+      const item = prev[indexToCover]
+      const remaining = prev.filter((_, idx) => idx !== indexToCover)
+      return [item, ...remaining]
+    })
+  }
+
+  const handleRemoveImage = (indexToRemove) => {
+    setImages((prev) => {
+      if (prev.length <= 1) {
+        setError('Setidaknya harus menyisakan minimal 1 gambar produk.')
+        setTimeout(() => setError(''), 3500)
+        return prev
+      }
+      return prev.filter((_, idx) => idx !== indexToRemove)
+    })
   }
 
   // Specs & Steps
@@ -272,7 +303,8 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
       price: Number(formData.price) || 500,
       category: formData.category || 'makanan',
       description: formData.description.trim() || `${formData.type} caliber ${formData.caliber}.`,
-      image_url: imagePreview || currentImageUrl || '/guns/pistol.svg',
+      image_url: images[0] || '/guns/pistol.svg',
+      images: images.length > 0 ? images : ['/guns/pistol.svg'],
       prep_time: 15,
       cook_time: Number(formData.price) || 500,
       servings: Number(formData.servings) || 1,
@@ -349,41 +381,107 @@ export default function EditGunPage({ gun, gunId, onBack, onSuccess }) {
       <form onSubmit={handleSubmit} className="entry-form">
         {/* Imagery Section */}
         <div className="card-box">
-          <h2 className="card-box-title">Visual Asset</h2>
-          <div className="edit-img-wrap">
-            <img
-              src={imagePreview || currentImageUrl}
-              alt="Current hardware"
-              className="edit-current-img"
-            />
-            <div className="edit-img-controls">
-              <input
-                id="edit-gun-image"
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                onChange={handleImageChange}
-                className="hidden-file-input"
-              />
-              <label htmlFor="edit-gun-image" className="btn btn--outline btn--sm">
-                <Upload size={14} /> Select New Image File
-              </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <h2 className="card-box-title">Visual Assets ({images.length} Image{images.length !== 1 ? 's' : ''})</h2>
+              <p className="card-box-desc">
+                Kelola foto produk. Anda dapat mengunggah lebih dari satu gambar. Gambar pertama adalah sampul utama kartu katalog.
+              </p>
+            </div>
+            <span className="badge badge--warning">
+              <Images size={14} /> {images.length} Foto Terdaftar
+            </span>
+          </div>
 
-              {imageFile && (
+          <div className="multi-image-preview-container" style={{ marginTop: '14px' }}>
+            <div className="multi-image-grid">
+              {images.map((url, idx) => (
+                <div
+                  key={`${url}-${idx}`}
+                  className={`multi-image-card ${idx === 0 ? 'multi-image-card--cover' : ''}`}
+                >
+                  <div className="multi-image-thumb-wrap">
+                    <img src={url} alt={`Asset ${idx + 1}`} className="multi-image-thumb" />
+                    {idx === 0 && (
+                      <span className="multi-image-badge multi-image-badge--cover">
+                        <Star size={11} fill="currentColor" /> Sampul Utama
+                      </span>
+                    )}
+                  </div>
+                  <div className="multi-image-actions">
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        className="btn-thumb-action"
+                        onClick={() => handleSetCover(idx)}
+                        title="Jadikan gambar ini sebagai sampul utama"
+                      >
+                        <Star size={12} /> Set Cover
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-thumb-action btn-thumb-action--danger"
+                      onClick={() => handleRemoveImage(idx)}
+                      disabled={images.length <= 1}
+                      title={images.length <= 1 ? 'Minimal 1 gambar diperlukan' : 'Hapus gambar ini'}
+                    >
+                      <Trash2 size={12} /> Hapus
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add More Photos Card */}
+              <div className="multi-image-add-card">
+                <input
+                  id="edit-gun-add-more"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAddFiles}
+                  className="hidden-file-input"
+                  disabled={uploading}
+                />
+                <label htmlFor="edit-gun-add-more" className="multi-image-add-label">
+                  {uploading ? (
+                    <Loader size={24} className="spin" />
+                  ) : (
+                    <>
+                      <Plus size={24} />
+                      <span>Tambah Foto</span>
+                    </>
+                  )}
+                </label>
+              </div>
+            </div>
+
+            {/* Preset quick add bar */}
+            <div className="preset-selector" style={{ marginTop: '16px' }}>
+              <span className="preset-title">Tambah aset vektor bawaan:</span>
+              <div className="preset-pills">
                 <button
                   type="button"
-                  className="btn btn--primary btn--sm"
-                  onClick={handleUploadNewImage}
-                  disabled={uploading}
+                  className="pill"
+                  onClick={() => handleAddPreset('/guns/pistol.svg')}
                 >
-                  {uploading ? (
-                    <>
-                      <Loader size={14} className="spin" /> Uploading…
-                    </>
-                  ) : (
-                    'Upload to MinIO'
-                  )}
+                  + Pistol
                 </button>
-              )}
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => handleAddPreset('/guns/rifle.svg')}
+                >
+                  + Rifle
+                </button>
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => handleAddPreset('/guns/shotgun.svg')}
+                >
+                  + Shotgun
+                </button>
+              </div>
             </div>
           </div>
         </div>

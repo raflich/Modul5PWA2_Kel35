@@ -54,6 +54,11 @@ export default function GunCard({
               <Archive size={11} /> ARSIP
             </span>
           )}
+          {gun.images && gun.images.length > 1 && (
+            <span className="card-gallery-badge" title={`${gun.images.length} images`}>
+              📷 {gun.images.length}
+            </span>
+          )}
         </div>
 
         <span className="name display">{gun.name}</span>
