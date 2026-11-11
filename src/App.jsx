@@ -15,6 +15,7 @@ import './App.css'
 // ---------------------------------------------------------------------------
 const Catalog = lazy(() => import('./pages/Catalog.jsx'))
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage.jsx'))
+const ArchivePage = lazy(() => import('./pages/ArchivePage.jsx'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'))
 const CreateGunPage = lazy(() => import('./pages/CreateGunPage.jsx'))
 const EditGunPage = lazy(() => import('./pages/EditGunPage.jsx'))
@@ -177,6 +178,12 @@ function App() {
                 <FavoritesPage
                   onSelectGun={(g) => handleNavigate('Detail', g)}
                   onNavigateCatalog={() => setTab('Catalog')}
+                />
+              )}
+              {tab === 'Archive' && (
+                <ArchivePage
+                  onNavigateCatalog={() => setTab('Catalog')}
+                  onSelectGun={(g) => handleNavigate('Detail', g)}
                 />
               )}
               {tab === 'Profile' && (

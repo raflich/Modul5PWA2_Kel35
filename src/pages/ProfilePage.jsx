@@ -19,9 +19,11 @@ import {
   X,
   ArrowRight,
   Plus,
+  Archive,
 } from 'lucide-react'
 import userService from '../services/userService'
 import { useFavorites } from '../hooks/useFavorites'
+import { useArchive } from '../hooks/useArchive'
 import queryCache from '../utils/queryCache'
 import {
   getAllDrafts,
@@ -67,6 +69,7 @@ export default function ProfilePage({ onReplaySplash, onNavigate, initialSection
 
   // Cache stats
   const { favorites } = useFavorites()
+  const { archivedCount } = useArchive()
   const [cacheCount, setCacheCount] = useState(getQueryCacheCount)
 
   // Edit Profile Modal state
@@ -288,6 +291,16 @@ export default function ProfilePage({ onReplaySplash, onNavigate, initialSection
             <Database size={20} className="stat-icon" stroke="var(--brass)" />
             <div className="stat-val">{cacheCount}</div>
             <div className="stat-label">Cached Queries</div>
+          </div>
+          <div
+            className="stat-item"
+            onClick={() => onNavigate && onNavigate('Archive')}
+            style={{ cursor: onNavigate ? 'pointer' : 'default' }}
+            title="Buka halaman Arsip Hardware"
+          >
+            <Archive size={20} className="stat-icon" stroke="var(--brass)" />
+            <div className="stat-val">{archivedCount}</div>
+            <div className="stat-label">Archived Hardware</div>
           </div>
         </div>
 

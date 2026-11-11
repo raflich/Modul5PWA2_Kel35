@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ArrowLeft, Star, Send, Loader } from 'lucide-react'
+import { ArrowLeft, Star, Send, Loader, Archive, RotateCcw, Check } from 'lucide-react'
 import FavoriteButton from '../common/FavoriteButton'
 import ShareButton from '../common/ShareButton'
 import LazyImage from '../common/LazyImage'
+import { useArchive } from '../../hooks/useArchive'
 import { useReviews, useCreateReview } from '../../hooks/useReviews'
 import { getUserIdentifier } from '../../services/userService'
 import { formatPrice, averageRating } from '../../utils/helpers'
@@ -25,10 +26,25 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
   // Reviews
   const { reviews, loading: reviewsLoading, refetch: refetchReviews } = useReviews(gun.id)
   const { createReview, loading: submitting } = useCreateReview()
+  const { isArchived, archiveGun, restoreGun } = useArchive()
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [reviewError, setReviewError] = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
+  const [archiveFeedback, setArchiveFeedback] = useState('')
+
+  const isItemArchived = isArchived(gun.id || gun.name) || Boolean(gun.is_archived)
+
+  const handleToggleArchive = async () => {
+    if (isItemArchived) {
+      await restoreGun(gun.id || gun.name)
+      setArchiveFeedback('Hardware berhasil dipulihkan ke katalog utama.')
+    } else {
+      await archiveGun(gun)
+      setArchiveFeedback('Hardware berhasil dipindahkan ke arsip (soft delete).')
+    }
+    setTimeout(() => setArchiveFeedback(''), 3500)
+  }
 
   const avgRating = gun.average_rating || averageRating(reviews)
   const reviewCount = gun.review_count ?? reviews.length
@@ -90,10 +106,43 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
             </p>
           )}
 
+          {archiveFeedback && (
+            <div className="toast toast--success" style={{ margin: '8px 0' }}>
+              <Check size={16} /> {archiveFeedback}
+            </div>
+          )}
+
+          {isItemArchived && (
+            <div style={{ margin: '6px 0' }}>
+              <span className="badge badge--warning">
+                <Archive size={12} /> STATUS: DIARSIPKAN
+              </span>
+            </div>
+          )}
+
           <div className="detail-actions">
             <ShareButton gun={gun} variant="button" />
             <FavoriteButton gunId={gun.id || gun.name} />
-            {onEdit && (
+            {isItemArchived ? (
+              <button
+                type="button"
+                className="btn btn--outline"
+                onClick={handleToggleArchive}
+                title="Pulihkan hardware ini ke katalog aktif"
+              >
+                <RotateCcw size={16} stroke="var(--brass)" /> Pulihkan
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--outline"
+                onClick={handleToggleArchive}
+                title="Pindahkan hardware ini ke arsip (soft delete)"
+              >
+                <Archive size={16} /> Arsipkan
+              </button>
+            )}
+            {onEdit && !isItemArchived && (
               <button type="button" className="btn btn--outline" onClick={() => onEdit(gun)}>
                 Edit
               </button>

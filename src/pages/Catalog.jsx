@@ -1,6 +1,7 @@
 import { useState, useMemo, lazy, Suspense } from 'react'
-import { RefreshCw, Plus, Loader, AlertCircle, PackageOpen } from 'lucide-react'
+import { RefreshCw, Plus, Loader, AlertCircle, PackageOpen, Archive, Check } from 'lucide-react'
 import { useGuns } from '../hooks/useGuns'
+import { useArchive } from '../hooks/useArchive'
 import GUNS_LOCAL from '../data/guns'
 import GunCard from '../components/gun/GunCard'
 import AdvancedFilter from '../components/common/AdvancedFilter'
@@ -29,6 +30,8 @@ export default function Catalog({ onNavigate }) {
   // ---- API data ----
   const { guns: apiGuns, loading, error, isFetching, refetch } = useGuns({ limit: 50 })
   const [useLocal, setUseLocal] = useState(false)
+  const { isArchived, archiveGun, archivedCount } = useArchive()
+  const [toastMsg, setToastMsg] = useState('')
 
   // Decide data source
   const rawGuns = useMemo(() => {
@@ -38,6 +41,11 @@ export default function Catalog({ onNavigate }) {
     }
     return apiGuns
   }, [apiGuns, error, useLocal])
+
+  // Filter out archived guns from active catalog
+  const activeGuns = useMemo(() => {
+    return rawGuns.filter((g) => !isArchived(g.id || g.name) && !g.is_archived)
+  }, [rawGuns, isArchived])
 
   // ---- filters / sort ----
   const [search, setSearch] = useState('')
@@ -49,14 +57,14 @@ export default function Catalog({ onNavigate }) {
   const ITEMS_PER_PAGE = 10
   const [currentPage, setCurrentPage] = useState(1)
 
-  const categories = useMemo(() => extractCategories(rawGuns), [rawGuns])
+  const categories = useMemo(() => extractCategories(activeGuns), [activeGuns])
 
   const filteredGuns = useMemo(() => {
-    let result = rawGuns.filter(
+    let result = activeGuns.filter(
       (g) => matchesSearch(g, search) && matchesCategory(g, activeCategory),
     )
     return sortItems(result, sortKey, sortOrder)
-  }, [rawGuns, search, activeCategory, sortKey, sortOrder])
+  }, [activeGuns, search, activeCategory, sortKey, sortOrder])
 
   const totalPages = Math.ceil(filteredGuns.length / ITEMS_PER_PAGE) || 1
   const validPage = Math.min(Math.max(1, currentPage), totalPages)
@@ -103,6 +111,12 @@ export default function Catalog({ onNavigate }) {
     } finally {
       setDeleting(false)
     }
+  }
+
+  const handleArchive = async (gun) => {
+    await archiveGun(gun)
+    setToastMsg(`"${gun.name}" berhasil dipindahkan ke arsip (soft delete).`)
+    setTimeout(() => setToastMsg(''), 3500)
   }
 
   // ---- If viewing a single product detail ----
@@ -160,6 +174,16 @@ export default function Catalog({ onNavigate }) {
               {filteredGuns.length} piece{filteredGuns.length !== 1 ? 's' : ''}
               {totalPages > 1 && ` · Page ${validPage} of ${totalPages}`}
             </span>
+            {onNavigate && archivedCount > 0 && (
+              <button
+                type="button"
+                className="btn btn--outline btn--sm"
+                onClick={() => onNavigate('Archive')}
+                title="Lihat katalog yang diarsipkan"
+              >
+                <Archive size={14} /> Arsip ({archivedCount})
+              </button>
+            )}
             {onNavigate && (
               <button
                 type="button"
@@ -171,6 +195,12 @@ export default function Catalog({ onNavigate }) {
             )}
           </div>
         </div>
+
+        {toastMsg && (
+          <div className="toast toast--success" style={{ marginBottom: '16px' }}>
+            <Check size={18} /> {toastMsg}
+          </div>
+        )}
 
         {/* Filters */}
         <AdvancedFilter
@@ -227,6 +257,7 @@ export default function Catalog({ onNavigate }) {
                 gun={gun}
                 onSelect={setSelectedGun}
                 onEdit={onNavigate ? (g) => onNavigate('Edit', g) : undefined}
+                onArchive={handleArchive}
                 onDelete={setDeleteTarget}
               />
             ))}

@@ -1,15 +1,18 @@
 import { Plus } from 'lucide-react'
 import { useFavorites } from '../hooks/useFavorites'
+import { useArchive } from '../hooks/useArchive'
 
 const NAV_ITEMS = [
   { id: 'Catalog', label: 'Catalog' },
-  { id: 'Favorites', label: 'Favorites', hasBadge: true },
+  { id: 'Favorites', label: 'Favorites', badgeKey: 'fav' },
+  { id: 'Archive', label: 'Archive', badgeKey: 'archive' },
   { id: 'Profile', label: 'Profile' },
 ]
 
 function Header({ tab, onTab, onNavigateCreate }) {
   const { favorites } = useFavorites()
   const favCount = favorites ? favorites.length : 0
+  const { archivedCount } = useArchive()
 
   return (
     <header className="header">
@@ -29,8 +32,11 @@ function Header({ tab, onTab, onNavigateCreate }) {
             onClick={() => onTab(item.id)}
           >
             {item.label}
-            {item.hasBadge && favCount > 0 && (
+            {item.badgeKey === 'fav' && favCount > 0 && (
               <span className="nav-badge">{favCount}</span>
+            )}
+            {item.badgeKey === 'archive' && archivedCount > 0 && (
+              <span className="nav-badge nav-badge--archive">{archivedCount}</span>
             )}
           </button>
         ))}
