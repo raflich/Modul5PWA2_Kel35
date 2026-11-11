@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import reviewService from '../services/reviewService'
 import { useQuery } from './useQuery'
 import queryCache from '../utils/queryCache'
@@ -15,7 +15,7 @@ export function useReviews(gunId) {
     () => reviewService.getReviews(gunId),
     {
       enabled: Boolean(gunId),
-      staleTime: 1000 * 60 * 2, // 2 minutes fresh
+      staleTime: 1000 * 60 * 1, // 1 minute fresh
       cacheTime: 1000 * 60 * 60 * 24,
     },
   )
@@ -32,7 +32,7 @@ export function useReviews(gunId) {
 }
 
 // ---------------------------------------------------------------------------
-// useCreateReview — submit a new review and invalidate reviews query cache.
+// useCreateReview — submit a new review.
 // ---------------------------------------------------------------------------
 
 export function useCreateReview() {
@@ -50,7 +50,6 @@ export function useCreateReview() {
 
       if (response && (response.success || response.data)) {
         setSuccess(true)
-        // Invalidate review query for this gun & products
         queryCache.invalidateQueries(['reviews', gunId])
         queryCache.invalidateQueries('guns')
         return response.data || response
@@ -67,4 +66,92 @@ export function useCreateReview() {
   }
 
   return { createReview, loading, error, success }
+}
+
+// ---------------------------------------------------------------------------
+// useUpdateReview — edit author's own review.
+// ---------------------------------------------------------------------------
+
+export function useUpdateReview() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const updateReview = async (gunId, reviewId, reviewData) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await reviewService.updateReview(gunId, reviewId, reviewData)
+
+      if (response && response.success) {
+        queryCache.invalidateQueries(['reviews', gunId])
+        queryCache.invalidateQueries('guns')
+        return true
+      }
+      throw new Error(response?.message || 'Failed to update review.')
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating review.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { updateReview, loading, error }
+}
+
+// ---------------------------------------------------------------------------
+// useDeleteReview — delete author's own review.
+// ---------------------------------------------------------------------------
+
+export function useDeleteReview() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const deleteReview = async (gunId, reviewId) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await reviewService.deleteReview(gunId, reviewId)
+
+      if (response && response.success) {
+        queryCache.invalidateQueries(['reviews', gunId])
+        queryCache.invalidateQueries('guns')
+        return true
+      }
+      throw new Error(response?.message || 'Failed to delete review.')
+    } catch (err) {
+      setError(err.message || 'An error occurred while deleting review.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { deleteReview, loading, error }
+}
+
+// ---------------------------------------------------------------------------
+// useVoteReview — Like or Dislike another user's review.
+// ---------------------------------------------------------------------------
+
+export function useVoteReview() {
+  const [voting, setVoting] = useState(false)
+
+  const voteReview = useCallback(async (reviewId, voteType, userId) => {
+    setVoting(true)
+    try {
+      const res = await reviewService.voteReview(reviewId, voteType, userId)
+      return res
+    } finally {
+      setVoting(false)
+    }
+  }, [])
+
+  const getReaction = useCallback((reviewId, userId) => {
+    return reviewService.getReviewReaction(reviewId, userId)
+  }, [])
+
+  return { voteReview, getReaction, voting }
 }

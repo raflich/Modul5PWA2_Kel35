@@ -941,6 +941,111 @@
   font-size: 0.9rem;
 }
 
+.review-item--own {
+  background: rgba(166, 124, 46, 0.04);
+  border-radius: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(166, 124, 46, 0.2);
+}
+
+.review-own-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--paper);
+  color: var(--brass);
+  border: 1px solid var(--brass);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.review-actions-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-icon-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--steel);
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-icon-btn:hover {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--steel);
+}
+
+.review-icon-btn--danger:hover {
+  background: #fdedec;
+  color: #c0392b;
+  border-color: #c0392b;
+}
+
+.review-edit-box {
+  margin-top: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.review-reactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.review-vote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--steel);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-vote-btn:hover {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--steel);
+}
+
+.review-vote-btn--active {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: var(--brass);
+}
+
+.review-vote-btn--active-dislike {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #f87171;
+}
+
+.review-reactions-info {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--steel);
+}
+
 .form-error {
   color: #c0392b;
   font-size: 0.85rem;

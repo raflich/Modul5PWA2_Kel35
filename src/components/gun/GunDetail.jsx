@@ -1,10 +1,29 @@
 import { useState } from 'react'
-import { ArrowLeft, Star, Send, Loader, Archive, RotateCcw, Check } from 'lucide-react'
+import {
+  ArrowLeft,
+  Star,
+  Send,
+  Loader,
+  Archive,
+  RotateCcw,
+  Check,
+  ThumbsUp,
+  ThumbsDown,
+  Edit2,
+  Trash2,
+} from 'lucide-react'
 import FavoriteButton from '../common/FavoriteButton'
 import ShareButton from '../common/ShareButton'
 import LazyImage from '../common/LazyImage'
+import ConfirmModal from '../modals/ConfirmModal'
 import { useArchive } from '../../hooks/useArchive'
-import { useReviews, useCreateReview } from '../../hooks/useReviews'
+import {
+  useReviews,
+  useCreateReview,
+  useUpdateReview,
+  useDeleteReview,
+  useVoteReview,
+} from '../../hooks/useReviews'
 import { getUserIdentifier } from '../../services/userService'
 import { formatPrice, averageRating } from '../../utils/helpers'
 
@@ -24,14 +43,31 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
   const price = gun.price ?? gun.cook_time ?? 0
 
   // Reviews
+  const currentUserId = getUserIdentifier()
   const { reviews, loading: reviewsLoading, refetch: refetchReviews } = useReviews(gun.id)
   const { createReview, loading: submitting } = useCreateReview()
+  const { updateReview, loading: updatingReview } = useUpdateReview()
+  const { deleteReview, loading: deletingReview } = useDeleteReview()
+  const { voteReview, getReaction } = useVoteReview()
   const { isArchived, archiveGun, restoreGun } = useArchive()
+
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [reviewError, setReviewError] = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
   const [archiveFeedback, setArchiveFeedback] = useState('')
+
+  // State for editing user's own review
+  const [editingReviewId, setEditingReviewId] = useState(null)
+  const [editRating, setEditRating] = useState(5)
+  const [editComment, setEditComment] = useState('')
+  const [editError, setEditError] = useState('')
+
+  // State for deleting review confirmation modal
+  const [deleteReviewTarget, setDeleteReviewTarget] = useState(null)
+
+  // Local reaction overrides to provide instantaneous UI updates
+  const [reactions, setReactions] = useState({})
 
   const isItemArchived = isArchived(gun.id || gun.name) || Boolean(gun.is_archived)
 
@@ -72,6 +108,70 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
       refetchReviews()
     } else {
       setReviewError('Could not submit review. The server may be unavailable.')
+    }
+  }
+
+  // Helper to resolve reaction state for a review
+  const getReactionState = (rev) => {
+    if (reactions[rev.id]) return reactions[rev.id]
+    const stored = getReaction(rev.id, currentUserId)
+    return {
+      likes: stored.likes ?? rev.likes ?? 0,
+      dislikes: stored.dislikes ?? rev.dislikes ?? 0,
+      userVote: stored.userVote || null,
+    }
+  }
+
+  // Handle Like / Dislike voting for reviews by other operators
+  const handleVote = async (revId, voteType) => {
+    const res = await voteReview(revId, voteType, currentUserId)
+    if (res && res.success) {
+      setReactions((prev) => ({
+        ...prev,
+        [revId]: res.data,
+      }))
+    }
+  }
+
+  const handleStartEdit = (rev) => {
+    setEditingReviewId(rev.id)
+    setEditRating(rev.rating || 5)
+    setEditComment(rev.comment || '')
+    setEditError('')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingReviewId(null)
+    setEditError('')
+  }
+
+  const handleSaveEdit = async (revId) => {
+    if (editRating < 1 || editRating > 5) {
+      setEditError('Rating must be between 1 and 5.')
+      return
+    }
+    const success = await updateReview(gun.id, revId, {
+      rating: editRating,
+      comment: editComment.trim(),
+    })
+    if (success) {
+      setEditingReviewId(null)
+      refetchReviews()
+      setReviewSuccess('Ulasan berhasil diperbarui!')
+      setTimeout(() => setReviewSuccess(''), 3000)
+    } else {
+      setEditError('Gagal memperbarui ulasan.')
+    }
+  }
+
+  const handleConfirmDeleteReview = async () => {
+    if (!deleteReviewTarget) return
+    const success = await deleteReview(gun.id, deleteReviewTarget.id)
+    if (success) {
+      setDeleteReviewTarget(null)
+      refetchReviews()
+      setReviewSuccess('Ulasan Anda telah dihapus.')
+      setTimeout(() => setReviewSuccess(''), 3000)
     }
   }
 
@@ -248,29 +348,168 @@ export default function GunDetail({ gun, onBack, onEdit, onDelete }) {
           <p className="detail-loading">Loading reviews…</p>
         ) : reviews.length > 0 ? (
           <ul className="review-list">
-            {reviews.map((rev) => (
-              <li key={rev.id} className="review-item">
-                <div className="review-head">
-                  <span className="review-user">{rev.user_identifier || 'Anonymous'}</span>
-                  <span className="review-stars-display">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        fill={i < rev.rating ? 'var(--brass)' : 'none'}
-                        stroke={i < rev.rating ? 'var(--brass)' : 'var(--line)'}
+            {reviews.map((rev) => {
+              const isEditing = editingReviewId === rev.id
+              const isOwnReview = Boolean(
+                currentUserId &&
+                (String(rev.user_id) === String(currentUserId) ||
+                 rev.user_identifier === currentUserId ||
+                 rev.user_identifier === `Operator ${String(currentUserId).substring(0, 8)}`)
+              )
+              const reaction = getReactionState(rev)
+
+              return (
+                <li key={rev.id} className={`review-item ${isOwnReview ? 'review-item--own' : ''}`}>
+                  <div className="review-head">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="review-user">{rev.user_identifier || 'Anonymous'}</span>
+                      {isOwnReview && <span className="review-own-badge">Ulasan Anda</span>}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {!isEditing && (
+                        <span className="review-stars-display">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star
+                              key={i}
+                              size={14}
+                              fill={i < rev.rating ? 'var(--brass)' : 'none'}
+                              stroke={i < rev.rating ? 'var(--brass)' : 'var(--line)'}
+                            />
+                          ))}
+                        </span>
+                      )}
+
+                      {/* Edit / Delete actions for own review */}
+                      {isOwnReview && !isEditing && (
+                        <div className="review-actions-own">
+                          <button
+                            type="button"
+                            className="review-icon-btn"
+                            onClick={() => handleStartEdit(rev)}
+                            title="Edit ulasan Anda"
+                            aria-label="Edit ulasan"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="review-icon-btn review-icon-btn--danger"
+                            onClick={() => setDeleteReviewTarget(rev)}
+                            title="Hapus ulasan Anda"
+                            aria-label="Hapus ulasan"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* If currently editing this review */}
+                  {isEditing ? (
+                    <div className="review-edit-box">
+                      <div className="review-stars" style={{ marginBottom: '8px' }}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            className="star-btn"
+                            onClick={() => setEditRating(n)}
+                            aria-label={`${n} star`}
+                          >
+                            <Star
+                              size={20}
+                              fill={n <= editRating ? 'var(--brass)' : 'none'}
+                              stroke={n <= editRating ? 'var(--brass)' : 'var(--steel)'}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        className="review-input"
+                        rows="3"
+                        value={editComment}
+                        onChange={(e) => setEditComment(e.target.value)}
+                        placeholder="Ubah ulasan Anda..."
+                        maxLength={500}
                       />
-                    ))}
-                  </span>
-                </div>
-                {rev.comment && <p className="review-comment">{rev.comment}</p>}
-              </li>
-            ))}
+                      {editError && <p className="form-error">{editError}</p>}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          onClick={() => handleSaveEdit(rev.id)}
+                          disabled={updatingReview}
+                        >
+                          {updatingReview ? 'Menyimpan…' : 'Simpan Perubahan'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm"
+                          onClick={handleCancelEdit}
+                          disabled={updatingReview}
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {rev.comment && <p className="review-comment">{rev.comment}</p>}
+
+                      {/* Voting for reviews made by other operators */}
+                      {!isOwnReview ? (
+                        <div className="review-reactions">
+                          <button
+                            type="button"
+                            className={`review-vote-btn ${reaction.userVote === 'like' ? 'review-vote-btn--active' : ''}`}
+                            onClick={() => handleVote(rev.id, 'like')}
+                            title="Suka ulasan ini (Thumbs Up)"
+                          >
+                            <ThumbsUp size={13} />
+                            <span>{reaction.likes}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`review-vote-btn ${reaction.userVote === 'dislike' ? 'review-vote-btn--active-dislike' : ''}`}
+                            onClick={() => handleVote(rev.id, 'dislike')}
+                            title="Tidak suka ulasan ini (Thumbs Down)"
+                          >
+                            <ThumbsDown size={13} />
+                            <span>{reaction.dislikes}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="review-reactions-info">
+                          <span title="Dukungan pada ulasan Anda">
+                            👍 {reaction.likes} · 👎 {reaction.dislikes}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         ) : (
           <p className="detail-empty">No reviews yet. Be the first!</p>
         )}
       </section>
+
+      {/* Confirmation Modal for Review Deletion */}
+      <ConfirmModal
+        open={Boolean(deleteReviewTarget)}
+        title="Hapus Ulasan Anda"
+        message="Apakah Anda yakin ingin menghapus ulasan ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus Ulasan"
+        cancelLabel="Batal"
+        danger
+        loading={deletingReview}
+        onConfirm={handleConfirmDeleteReview}
+        onCancel={() => setDeleteReviewTarget(null)}
+      />
     </div>
   )
 }

@@ -28,8 +28,13 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     user_id TEXT NOT NULL,
     rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT DEFAULT '',
+    likes INT DEFAULT 0,
+    dislikes INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
+
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS likes INT DEFAULT 0;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS dislikes INT DEFAULT 0;
 
 -- 3. TABEL FAVORITES (Daftar Favorit Pengguna)
 CREATE TABLE IF NOT EXISTS public.favorites (
